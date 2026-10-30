@@ -1,107 +1,96 @@
-# Collaborative Filtering Recommendation Application
+# 🎬 Collaborative Filtering Movie Recommender
 
-## Overview
+**Pick a viewer, find the people who rate movies like they do, and recommend what those people loved. Runs locally with one command.**
 
-A movie recommendation system built using collaborative filtering techniques to provide personalized movie suggestions. The system analyzes user rating patterns and similarities between users to generate relevant recommendations.
+The algorithm comes from `CollaborativeFiltering.ipynb`: user-based collaborative filtering with cosine similarity over 100,000 ratings (944 users, 1,682 movies). It's now packaged as a FastAPI service with a React front end.
 
-![image](img/table-menu.jpg)
-![image](img/dashboard.jpg)
+![Recommendations in the React app](docs/screenshots/web-recommendations.png)
 
-## Features
+---
 
-- User-based collaborative filtering algorithm
-- Cosine similarity for user preference matching
-- Movie rating analysis and visualization
-- Support for 1600+ movies and 900+ users
-- Personalized recommendations based on user history
-
-## Installation
+## Quick start
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/collaborative-recommender.git
-
-# Change into project directory
-cd collaborative-recommender
-
-# Install required packages
-pip install -r requirements.txt
+cp .env.example .env
+docker compose up --build
 ```
 
-## Requirements
+| Service | URL |
+|---|---|
+| React app (nginx) | http://localhost:8080 |
+| FastAPI (Swagger docs) | http://localhost:8000/docs |
 
-```txt
-pandas>=1.3.0
-numpy>=1.21.0
-scikit-learn>=0.24.0
-streamlit>=1.0.0
-plotly>=5.0.0
-```
+## The app
 
-## Dataset
+### 1. Choose a viewer and the neighbourhood size
+The **viewer** dropdown lists all 944 users. The **k** slider sets how many of the most similar users vote on each recommendation.
 
-The system utilizes two main data files:
+### 2. Read the recommendations
+Each card shows a movie the viewer hasn't rated yet, its neighbour score (the mean rating from the k similar users), its overall average, and its full 1–5★ rating distribution. The right-hand panel lists the viewer's own top-rated films, so you can check whether the suggestions make sense.
 
-- `Movie_data.csv`: Contains user ratings and interactions
-  - User_ID
-  - User_Names
-  - Movie_ID
-  - Rating (1-5 scale)
-  - Timestamp
+![Another viewer with k = 30](docs/screenshots/web-other-user.png)
 
-- `Movie_Id_Titles.csv`: Movie metadata
-  - Movie_ID
-  - Movie_Title
-
-## Usage
-
-Run the Streamlit web application:
+### 3. Use the API directly
 
 ```bash
-streamlit run app.py
+curl 'localhost:8000/recommendations/Shawn%20Wilson?k=10&top_n=5'
+curl  localhost:8000/movies/50/ratings
 ```
 
-The interface allows you to:
-1. Select a user from the dropdown menu
-2. View rating distributions and statistics
-3. Get personalized movie recommendations
+![Swagger docs](docs/screenshots/api-docs.png)
 
-## How It Works
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Status, plus user and movie counts |
+| `GET /users` | All viewer names |
+| `GET /users/{name}/history` | The viewer's top-rated movies |
+| `GET /recommendations/{name}?k=&top_n=` | Unseen movies ranked by the k nearest users |
+| `GET /movies/{id}/ratings` | Rating distribution and mean for a movie |
 
-1. Creates a user-movie interaction matrix
-2. Computes user similarities using cosine similarity
-3. Identifies most similar users for a given target user
-4. Aggregates highly rated movies from similar users
-5. Filters out previously watched movies
-6. Returns top-N movie recommendations
+## Architecture
 
-## Project Structure
-
+```mermaid
+flowchart LR
+    user([Browser]) -->|:8080| nginx[nginx<br/>serves React build]
+    nginx -->|/api/* proxy| api[FastAPI<br/>api/app]
+    user -.->|:8000/docs| api
+    api --> rec[Recommender<br/>user × movie matrix<br/>cosine similarity]
+    csv[(data/*.csv<br/>100k ratings)] -->|loaded once at startup| rec
+    subgraph Original
+      nb[CollaborativeFiltering.ipynb]
+    end
+    nb -. logic extracted into .-> rec
 ```
-collaborative-recommender/
-├── CollaborativeFiltering.ipynb   # Core recommendation algorithm
-├── app.py                         # Streamlit web interface
-├── Movie_data.csv                 # User rating dataset
-├── Movie_Id_Titles.csv           # Movie information
-├── requirements.txt              # Package dependencies
-└── README.md                     # Project documentation
+
+How a recommendation is made:
+
+```mermaid
+flowchart TD
+    A[Ratings → 944 × 1682 matrix] --> B[Cosine similarity between users]
+    B --> C[Take the k most similar users, excluding the viewer]
+    C --> D[Average their rating for every movie]
+    D --> E[Drop movies the viewer has already rated]
+    E --> F[Return the top N]
 ```
 
-## Statistics
+## Repo layout
 
-- Number of Users: 944
-- Number of Movies: 1,682
-- Total Ratings: 100,003
-- Matrix Sparsity: 6.3%
+| Path | What it is |
+|---|---|
+| `api/` | FastAPI service, recommender module and Dockerfile |
+| `web/` | React + Vite + TypeScript app, built and served by nginx |
+| `data/` | The ratings and titles CSVs |
+| `tests/` | Unit and API tests, including one test on the real dataset |
+| `scripts/screenshots.py` | Regenerates `docs/screenshots/` with Playwright |
+| `CollaborativeFiltering.ipynb` | Original exploration notebook |
+| `legacy/` | The original Streamlit app and its screenshots |
 
-## Contributing
+## Development
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+```bash
+pip install -r requirements-dev.txt && pytest -q        # tests
+uvicorn app.main:app --app-dir api --reload              # API on :8000 (set DATA_DIR=data)
+cd web && npm install && npm run dev                     # React on :5173, proxies /api to :8000
+```
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+CI (GitHub Actions) runs the tests and then `docker compose build` on every PR.
