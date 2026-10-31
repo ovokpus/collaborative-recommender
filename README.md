@@ -1,5 +1,7 @@
 # 🎬 Collaborative Filtering Movie Recommender
 
+<p align="center"><img src="docs/assets/hero.svg" alt="Collaborative Recommender" width="100%"/></p>
+
 **Pick a viewer, find the people who rate movies like they do, and recommend what those people loved. Runs locally with one command.**
 
 The algorithm comes from `CollaborativeFiltering.ipynb`: user-based collaborative filtering with cosine similarity over 100,000 ratings (944 users, 1,682 movies). It's now packaged as a FastAPI service with a React front end.
@@ -48,6 +50,8 @@ curl  localhost:8000/movies/50/ratings
 | `GET /movies/{id}/ratings` | Rating distribution and mean for a movie |
 
 ## Architecture
+
+<p align="center"><img src="docs/assets/flow.svg" alt="Collaborative Recommender data flow" width="100%"/></p>
 
 ```mermaid
 flowchart LR
