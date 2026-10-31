@@ -10,6 +10,10 @@ The algorithm comes from `CollaborativeFiltering.ipynb`: user-based collaborativ
 
 ---
 
+## Business case
+
+Catalogue businesses lose customers who can't find something they like. This recommender finds the viewers who rate like you and suggests what they loved, with the evidence for each suggestion on screen. It is a clear implementation of a classic algorithm on the MovieLens benchmark, and a starting point for a business with its own ratings. [docs/BUSINESS_CASE.md](docs/BUSINESS_CASE.md) covers the sourced business value of recommendations, use cases, an illustrative ROI model and the limits.
+
 ## Quick start
 
 ```bash
